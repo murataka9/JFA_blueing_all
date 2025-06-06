@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib import font_manager as fm
+from scipy import stats
 
 plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'Takao Gothic', 'IPAex Gothic', 'DejaVu Sans']
 
@@ -154,7 +155,7 @@ def create_technology_correlation(df):
     plt.close()
 
 def create_comparison_radar(df):
-    """Create separate box plots for AR/VR experience comparison [a][b][c][d]"""
+    """Create separate box plots for AR/VR experience comparison [a][b][c][d] with statistical significance tests"""
     
     aspects = {
         '[a]見た目がリアル (Visual Realism)': '[a]見た目がリアル',
@@ -189,10 +190,28 @@ def create_comparison_radar(df):
                 mean_val = data.mean()
                 median_val = data.median()
                 std_val = data.std()
-                axes[i].text(0.7, 5.2, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\n標準偏差: {std_val:.2f}\nN={len(data)}\n\n※高スコア=デジタル展示が\nAR/VR体験より優秀', 
+                
+                t_stat, p_value = stats.ttest_1samp(data, 3.0)
+                
+                if p_value < 0.001:
+                    sig_text = "***"
+                    sig_level = "p<0.001"
+                elif p_value < 0.01:
+                    sig_text = "**"
+                    sig_level = "p<0.01"
+                elif p_value < 0.05:
+                    sig_text = "*"
+                    sig_level = "p<0.05"
+                else:
+                    sig_text = "n.s."
+                    sig_level = f"p={p_value:.3f}"
+                
+                cohens_d = (mean_val - 3.0) / std_val if std_val > 0 else 0
+                
+                axes[i].text(0.7, 5.2, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\n標準偏差: {std_val:.2f}\nN={len(data)}\n\nt検定 vs 3.0:\nt={t_stat:.2f}, {sig_level}\n効果量d={cohens_d:.2f} {sig_text}\n\n※高スコア=デジタル展示が\nAR/VR体験より優秀', 
                             bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
                 
-                print(f"{aspect_name}: Mean={mean_val:.2f}, Median={median_val:.2f}, Std={std_val:.2f}, N={len(data)}")
+                print(f"{aspect_name}: Mean={mean_val:.2f}, t={t_stat:.2f}, p={p_value:.3f} {sig_text}, Cohen's d={cohens_d:.2f}, N={len(data)}")
             else:
                 axes[i].text(0.5, 0.5, 'データなし\n(No Data)', ha='center', va='center', 
                            transform=axes[i].transAxes, fontsize=14)
@@ -202,13 +221,13 @@ def create_comparison_radar(df):
                         ha='center', va='center', transform=axes[i].transAxes, fontsize=12)
             axes[i].set_title(f'{aspect_name}\n(列なし)', fontsize=14, fontweight='bold')
     
-    plt.suptitle('AR/VR経験者によるデジタル展示評価\n(Digital Exhibition Evaluation by AR/VR Experienced Users)', 
+    plt.suptitle('AR/VR経験者によるデジタル展示評価（統計的有意性検定付き）\n(Digital Exhibition Evaluation by AR/VR Experienced Users with Statistical Tests)', 
                 fontsize=18, fontweight='bold', y=0.95)
     plt.tight_layout()
     plt.savefig('Visitors/comparison_radar.png', dpi=150, bbox_inches='tight')
     plt.close()
     
-    print(f"Individual comparison aspect box plots saved: comparison_radar.png")
+    print(f"Individual comparison aspect box plots with significance tests saved: comparison_radar.png")
 
 def print_summary_statistics(df):
     print("=== 来場者調査データ分析結果 (Visitor Survey Analysis Results) ===\n")
@@ -252,6 +271,14 @@ def print_summary_statistics(df):
         print(f"デジタル展示満足度 (Digital): {digital_scores.mean():.1f}/5 ({len(digital_scores)}名)")
     if len(traditional_scores) > 0:
         print(f"実物展示満足度 (Traditional): {traditional_scores.mean():.1f}/5 ({len(traditional_scores)}名)")
+    
+    if len(digital_scores) > 0 and len(traditional_scores) > 0:
+        t_stat, p_value = stats.ttest_rel(digital_scores, traditional_scores)
+        print(f"対応のあるt検定 (Paired t-test): t={t_stat:.2f}, p={p_value:.3f}")
+        if p_value < 0.05:
+            print("→ 統計的有意差あり (Statistically significant difference)")
+        else:
+            print("→ 統計的有意差なし (No statistically significant difference)")
     print()
     
     print("=== 相関分析 (Correlation Analysis) ===")
@@ -264,6 +291,32 @@ def print_summary_statistics(df):
         pref_digital_corr = df[digital_pref_col].corr(df[digital_sat_col])
         if not pd.isna(pref_digital_corr):
             print(f"デジタル嗜好 vs デジタル満足度: {pref_digital_corr:.3f}")
+    
+    print("\n=== AR/VR比較統計的検定結果 (AR/VR Comparison Statistical Test Results) ===")
+    ar_vr_aspects = {
+        '[a]見た目がリアル': '[a]見た目がリアル',
+        '[b]体験が楽しい': '[b]体験が楽しい', 
+        '[c]操作がしやすい': '[c]操作がしやすい',
+        '[d]手軽だった': '[d]手軽だった'
+    }
+    
+    for aspect_name, col_name in ar_vr_aspects.items():
+        if col_name in df.columns:
+            data = pd.to_numeric(df[col_name], errors='coerce').dropna()
+            if len(data) > 0:
+                t_stat, p_value = stats.ttest_1samp(data, 3.0)
+                cohens_d = (data.mean() - 3.0) / data.std() if data.std() > 0 else 0
+                
+                if p_value < 0.001:
+                    sig_text = "***"
+                elif p_value < 0.01:
+                    sig_text = "**"
+                elif p_value < 0.05:
+                    sig_text = "*"
+                else:
+                    sig_text = "n.s."
+                
+                print(f"{aspect_name}: 平均={data.mean():.2f}, t={t_stat:.2f}, p={p_value:.3f} {sig_text}, d={cohens_d:.2f}")
     
     print("\n=== デバッグ情報 (Debug Info) ===")
     print("利用可能な列 (Available columns):")
