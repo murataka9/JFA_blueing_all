@@ -154,57 +154,61 @@ def create_technology_correlation(df):
     plt.close()
 
 def create_comparison_radar(df):
-    digital_col = 'デジタル展示満足度 (Digital Exhibition Satisfaction)'
-    traditional_col = '実物展示満足度 (Traditional Exhibition Satisfaction)'
+    """Create separate box plots for each comparison aspect [a][b][c][d]"""
     
-    digital_scores = df[digital_col].dropna()
-    traditional_scores = df[traditional_col].dropna()
+    aspects = {
+        '[a]見た目の印象': '[a]見た目の印象',
+        '[b]操作のしやすさ': '[b]操作のしやすさ', 
+        '[c]情報の理解しやすさ': '[c]情報の理解しやすさ',
+        '[d]楽しさ': '[d]楽しさ'
+    }
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    axes = axes.flatten()
     
-    if len(digital_scores) > 0:
-        bp1 = ax1.boxplot([digital_scores], patch_artist=True, labels=['デジタル展示\n(Digital Exhibition)'])
-        bp1['boxes'][0].set_facecolor('#FF6B6B')
-        bp1['boxes'][0].set_alpha(0.7)
-        
-        y_jitter = np.random.normal(1, 0.04, size=len(digital_scores))
-        ax1.scatter(y_jitter, digital_scores, alpha=0.6, color='#FF6B6B', s=30)
-        
-        ax1.set_ylabel('満足度 (Satisfaction Score)', fontsize=12)
-        ax1.set_title('デジタル展示満足度の分布\n(Digital Exhibition Satisfaction Distribution)', 
-                     fontsize=14, fontweight='bold')
-        ax1.set_ylim(0, 6)
-        ax1.grid(True, alpha=0.3)
-        
-        mean_val = digital_scores.mean()
-        median_val = digital_scores.median()
-        ax1.text(0.7, 5.5, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\nN={len(digital_scores)}', 
-                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A']
     
-    if len(traditional_scores) > 0:
-        bp2 = ax2.boxplot([traditional_scores], patch_artist=True, labels=['実物展示\n(Traditional Exhibition)'])
-        bp2['boxes'][0].set_facecolor('#4ECDC4')
-        bp2['boxes'][0].set_alpha(0.7)
-        
-        y_jitter = np.random.normal(1, 0.04, size=len(traditional_scores))
-        ax2.scatter(y_jitter, traditional_scores, alpha=0.6, color='#4ECDC4', s=30)
-        
-        ax2.set_ylabel('満足度 (Satisfaction Score)', fontsize=12)
-        ax2.set_title('実物展示満足度の分布\n(Traditional Exhibition Satisfaction Distribution)', 
-                     fontsize=14, fontweight='bold')
-        ax2.set_ylim(0, 6)
-        ax2.grid(True, alpha=0.3)
-        
-        mean_val = traditional_scores.mean()
-        median_val = traditional_scores.median()
-        ax2.text(0.7, 5.5, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\nN={len(traditional_scores)}', 
-                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+    for i, (aspect_name, col_name) in enumerate(aspects.items()):
+        if col_name in df.columns:
+            data = pd.to_numeric(df[col_name], errors='coerce').dropna()
+            
+            if len(data) > 0:
+                bp = axes[i].boxplot([data], patch_artist=True, tick_labels=['比較評価\n(Comparison Rating)'])
+                bp['boxes'][0].set_facecolor(colors[i])
+                bp['boxes'][0].set_alpha(0.7)
+                
+                y_jitter = np.random.normal(1, 0.04, size=len(data))
+                axes[i].scatter(y_jitter, data, alpha=0.6, color=colors[i], s=40)
+                
+                axes[i].set_ylabel('評価スコア (Rating Score)', fontsize=12)
+                axes[i].set_title(f'{aspect_name}\n(デジタル展示 vs 実物展示)', 
+                                fontsize=14, fontweight='bold')
+                axes[i].grid(True, alpha=0.3)
+                axes[i].set_ylim(0.5, 5.5)
+                
+                mean_val = data.mean()
+                median_val = data.median()
+                std_val = data.std()
+                axes[i].text(0.7, 5.2, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\n標準偏差: {std_val:.2f}\nN={len(data)}', 
+                            bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+                
+                print(f"{aspect_name}: Mean={mean_val:.2f}, Median={median_val:.2f}, Std={std_val:.2f}, N={len(data)}")
+            else:
+                axes[i].text(0.5, 0.5, 'データなし\n(No Data)', ha='center', va='center', 
+                           transform=axes[i].transAxes, fontsize=14)
+                axes[i].set_title(f'{aspect_name}\n(データなし)', fontsize=14, fontweight='bold')
+        else:
+            axes[i].text(0.5, 0.5, f'列が見つかりません\n(Column not found)\n{col_name}', 
+                        ha='center', va='center', transform=axes[i].transAxes, fontsize=12)
+            axes[i].set_title(f'{aspect_name}\n(列なし)', fontsize=14, fontweight='bold')
     
-    plt.suptitle('展示満足度の分布比較\n(Exhibition Satisfaction Distribution Comparison)', 
-                fontsize=16, fontweight='bold')
+    plt.suptitle('展示比較評価の各側面分析\n(Individual Aspect Analysis of Exhibition Comparison)', 
+                fontsize=18, fontweight='bold', y=0.95)
     plt.tight_layout()
     plt.savefig('Visitors/comparison_radar.png', dpi=150, bbox_inches='tight')
     plt.close()
+    
+    print(f"Individual comparison aspect box plots saved: comparison_radar.png")
 
 def print_summary_statistics(df):
     print("=== 来場者調査データ分析結果 (Visitor Survey Analysis Results) ===\n")
