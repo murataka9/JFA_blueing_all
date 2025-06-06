@@ -154,13 +154,13 @@ def create_technology_correlation(df):
     plt.close()
 
 def create_comparison_radar(df):
-    """Create separate box plots for each comparison aspect [a][b][c][d]"""
+    """Create separate box plots for AR/VR experience comparison [a][b][c][d]"""
     
     aspects = {
-        '[a]見た目の印象': '[a]見た目の印象',
-        '[b]操作のしやすさ': '[b]操作のしやすさ', 
-        '[c]情報の理解しやすさ': '[c]情報の理解しやすさ',
-        '[d]楽しさ': '[d]楽しさ'
+        '[a]見た目がリアル (Visual Realism)': '[a]見た目がリアル',
+        '[b]体験が楽しい (Experience Enjoyment)': '[b]体験が楽しい', 
+        '[c]操作がしやすい (Ease of Operation)': '[c]操作がしやすい',
+        '[d]手軽だった (Convenience)': '[d]手軽だった'
     }
     
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
@@ -173,7 +173,7 @@ def create_comparison_radar(df):
             data = pd.to_numeric(df[col_name], errors='coerce').dropna()
             
             if len(data) > 0:
-                bp = axes[i].boxplot([data], patch_artist=True, tick_labels=['比較評価\n(Comparison Rating)'])
+                bp = axes[i].boxplot([data], patch_artist=True, tick_labels=['AR/VR比較評価\n(vs AR/VR Experience)'])
                 bp['boxes'][0].set_facecolor(colors[i])
                 bp['boxes'][0].set_alpha(0.7)
                 
@@ -181,7 +181,7 @@ def create_comparison_radar(df):
                 axes[i].scatter(y_jitter, data, alpha=0.6, color=colors[i], s=40)
                 
                 axes[i].set_ylabel('評価スコア (Rating Score)', fontsize=12)
-                axes[i].set_title(f'{aspect_name}\n(デジタル展示 vs 実物展示)', 
+                axes[i].set_title(f'{aspect_name}\n(デジタル展示 vs AR/VR体験)', 
                                 fontsize=14, fontweight='bold')
                 axes[i].grid(True, alpha=0.3)
                 axes[i].set_ylim(0.5, 5.5)
@@ -189,7 +189,7 @@ def create_comparison_radar(df):
                 mean_val = data.mean()
                 median_val = data.median()
                 std_val = data.std()
-                axes[i].text(0.7, 5.2, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\n標準偏差: {std_val:.2f}\nN={len(data)}', 
+                axes[i].text(0.7, 5.2, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\n標準偏差: {std_val:.2f}\nN={len(data)}\n\n※高スコア=デジタル展示が\nAR/VR体験より優秀', 
                             bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
                 
                 print(f"{aspect_name}: Mean={mean_val:.2f}, Median={median_val:.2f}, Std={std_val:.2f}, N={len(data)}")
@@ -202,7 +202,7 @@ def create_comparison_radar(df):
                         ha='center', va='center', transform=axes[i].transAxes, fontsize=12)
             axes[i].set_title(f'{aspect_name}\n(列なし)', fontsize=14, fontweight='bold')
     
-    plt.suptitle('展示比較評価の各側面分析\n(Individual Aspect Analysis of Exhibition Comparison)', 
+    plt.suptitle('AR/VR経験者によるデジタル展示評価\n(Digital Exhibition Evaluation by AR/VR Experienced Users)', 
                 fontsize=18, fontweight='bold', y=0.95)
     plt.tight_layout()
     plt.savefig('Visitors/comparison_radar.png', dpi=150, bbox_inches='tight')
