@@ -1,0 +1,8 @@
+- [x] age_histogram
+- [x] occupation_bar
+- [x] soccer_likert
+- [x] tech_affinity_likert
+- [x] exhibition_preference_likert
+- [x] soccer_vs_tech_scatter
+- [x] soccer_vs_exhibition_scatter
+- [x] tech_vs_exhibition_scatter
