@@ -9,6 +9,23 @@ plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'Takao Gothic', 'IPAex Gothic
 def load_and_clean_data():
     df = pd.read_csv('Visitors/visitors survey_data.csv')
     
+    df = df.T
+    df.columns = df.iloc[0]  # Use first row as column names
+    df = df.drop(df.index[0])  # Remove the header row
+    
+    df.reset_index(drop=True, inplace=True)
+    
+    column_mapping = {
+        '[1]ご年齢': '年齢 (Age)',
+        '[3]サッカーは好きだ': 'サッカーへの関心 (Interest in Soccer)',
+        '[4]ARやVRなどデジタルテクノロジーに親しみがある': 'テクノロジーへの親和性 (Technology Affinity)',
+        '[5]デジタル・テクノロジー展示は好きだ': 'デジタル展示への嗜好 (Digital Exhibition Preference)',
+        '[2]DIGITAL COLLECTION展示の満足度について教えて下さい。': 'デジタル展示満足度 (Digital Exhibition Satisfaction)',
+        '[3]ROAD TO 2050などの実物展示を使った展示の満足度について教えて下さい。': '実物展示満足度 (Traditional Exhibition Satisfaction)'
+    }
+    
+    df.rename(columns=column_mapping, inplace=True)
+    
     numeric_columns = ['年齢 (Age)', 'サッカーへの関心 (Interest in Soccer)', 
                       'テクノロジーへの親和性 (Technology Affinity)', 
                       'デジタル展示への嗜好 (Digital Exhibition Preference)',
@@ -18,6 +35,8 @@ def load_and_clean_data():
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    df = df.dropna(how='all')
     
     return df
 
@@ -194,26 +213,55 @@ def print_summary_statistics(df):
     traditional_sat_col = '実物展示満足度 (Traditional Exhibition Satisfaction)'
     
     print(f"回答者数 (Total Respondents): {len(df)}")
-    print(f"平均年齢 (Average Age): {df[age_col].mean():.1f}歳 ({df[age_col].min():.0f}-{df[age_col].max():.0f}歳)")
-    print(f"サッカー関心度 (Soccer Interest): {df[soccer_col].mean():.1f}/5")
-    print(f"テクノロジー親和性 (Technology Affinity): {df[tech_col].mean():.1f}/5")
-    print(f"デジタル展示嗜好 (Digital Exhibition Preference): {df[digital_pref_col].mean():.1f}/5")
+    
+    if age_col in df.columns:
+        age_data = df[age_col].dropna()
+        if len(age_data) > 0:
+            print(f"平均年齢 (Average Age): {age_data.mean():.1f}歳 ({age_data.min():.0f}-{age_data.max():.0f}歳)")
+    
+    if soccer_col in df.columns:
+        soccer_data = df[soccer_col].dropna()
+        if len(soccer_data) > 0:
+            print(f"サッカー関心度 (Soccer Interest): {soccer_data.mean():.1f}/5")
+    
+    if tech_col in df.columns:
+        tech_data = df[tech_col].dropna()
+        if len(tech_data) > 0:
+            print(f"テクノロジー親和性 (Technology Affinity): {tech_data.mean():.1f}/5")
+    
+    if digital_pref_col in df.columns:
+        pref_data = df[digital_pref_col].dropna()
+        if len(pref_data) > 0:
+            print(f"デジタル展示嗜好 (Digital Exhibition Preference): {pref_data.mean():.1f}/5")
+    
     print()
     
-    digital_scores = df[digital_sat_col].dropna()
-    traditional_scores = df[traditional_sat_col].dropna()
+    digital_scores = df[digital_sat_col].dropna() if digital_sat_col in df.columns else pd.Series()
+    traditional_scores = df[traditional_sat_col].dropna() if traditional_sat_col in df.columns else pd.Series()
     
     print("=== 満足度比較 (Satisfaction Comparison) ===")
-    print(f"デジタル展示満足度 (Digital): {digital_scores.mean():.1f}/5 ({len(digital_scores)}名)")
-    print(f"実物展示満足度 (Traditional): {traditional_scores.mean():.1f}/5 ({len(traditional_scores)}名)")
+    if len(digital_scores) > 0:
+        print(f"デジタル展示満足度 (Digital): {digital_scores.mean():.1f}/5 ({len(digital_scores)}名)")
+    if len(traditional_scores) > 0:
+        print(f"実物展示満足度 (Traditional): {traditional_scores.mean():.1f}/5 ({len(traditional_scores)}名)")
     print()
     
-    tech_digital_corr = df[tech_col].corr(df[digital_sat_col])
-    pref_digital_corr = df[digital_pref_col].corr(df[digital_sat_col])
-    
     print("=== 相関分析 (Correlation Analysis) ===")
-    print(f"テクノロジー親和性 vs デジタル満足度: {tech_digital_corr:.3f}")
-    print(f"デジタル嗜好 vs デジタル満足度: {pref_digital_corr:.3f}")
+    if tech_col in df.columns and digital_sat_col in df.columns:
+        tech_digital_corr = df[tech_col].corr(df[digital_sat_col])
+        if not pd.isna(tech_digital_corr):
+            print(f"テクノロジー親和性 vs デジタル満足度: {tech_digital_corr:.3f}")
+    
+    if digital_pref_col in df.columns and digital_sat_col in df.columns:
+        pref_digital_corr = df[digital_pref_col].corr(df[digital_sat_col])
+        if not pd.isna(pref_digital_corr):
+            print(f"デジタル嗜好 vs デジタル満足度: {pref_digital_corr:.3f}")
+    
+    print("\n=== デバッグ情報 (Debug Info) ===")
+    print("利用可能な列 (Available columns):")
+    for col in df.columns:
+        print(f"  - {col}")
+    print(f"\nデータ形状 (Data shape): {df.shape}")
 
 def main():
     df = load_and_clean_data()
