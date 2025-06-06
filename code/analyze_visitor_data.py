@@ -160,44 +160,48 @@ def create_comparison_radar(df):
     digital_scores = df[digital_col].dropna()
     traditional_scores = df[traditional_col].dropna()
     
-    categories = ['満足度\n(Satisfaction)', '平均評価\n(Average Rating)', 
-                 '最高評価\n(Max Rating)', '評価の一貫性\n(Consistency)']
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
     
-    digital_values = [
-        digital_scores.mean(),
-        digital_scores.mean(),
-        digital_scores.max(),
-        5 - digital_scores.std()
-    ]
+    if len(digital_scores) > 0:
+        bp1 = ax1.boxplot([digital_scores], patch_artist=True, labels=['デジタル展示\n(Digital Exhibition)'])
+        bp1['boxes'][0].set_facecolor('#FF6B6B')
+        bp1['boxes'][0].set_alpha(0.7)
+        
+        y_jitter = np.random.normal(1, 0.04, size=len(digital_scores))
+        ax1.scatter(y_jitter, digital_scores, alpha=0.6, color='#FF6B6B', s=30)
+        
+        ax1.set_ylabel('満足度 (Satisfaction Score)', fontsize=12)
+        ax1.set_title('デジタル展示満足度の分布\n(Digital Exhibition Satisfaction Distribution)', 
+                     fontsize=14, fontweight='bold')
+        ax1.set_ylim(0, 6)
+        ax1.grid(True, alpha=0.3)
+        
+        mean_val = digital_scores.mean()
+        median_val = digital_scores.median()
+        ax1.text(0.7, 5.5, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\nN={len(digital_scores)}', 
+                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
     
-    traditional_values = [
-        traditional_scores.mean(),
-        traditional_scores.mean(),
-        traditional_scores.max(),
-        5 - traditional_scores.std()
-    ]
+    if len(traditional_scores) > 0:
+        bp2 = ax2.boxplot([traditional_scores], patch_artist=True, labels=['実物展示\n(Traditional Exhibition)'])
+        bp2['boxes'][0].set_facecolor('#4ECDC4')
+        bp2['boxes'][0].set_alpha(0.7)
+        
+        y_jitter = np.random.normal(1, 0.04, size=len(traditional_scores))
+        ax2.scatter(y_jitter, traditional_scores, alpha=0.6, color='#4ECDC4', s=30)
+        
+        ax2.set_ylabel('満足度 (Satisfaction Score)', fontsize=12)
+        ax2.set_title('実物展示満足度の分布\n(Traditional Exhibition Satisfaction Distribution)', 
+                     fontsize=14, fontweight='bold')
+        ax2.set_ylim(0, 6)
+        ax2.grid(True, alpha=0.3)
+        
+        mean_val = traditional_scores.mean()
+        median_val = traditional_scores.median()
+        ax2.text(0.7, 5.5, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\nN={len(traditional_scores)}', 
+                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
     
-    angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
-    digital_values += digital_values[:1]
-    traditional_values += traditional_values[:1]
-    angles += angles[:1]
-    
-    fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(projection='polar'))
-    
-    ax.plot(angles, digital_values, 'o-', linewidth=2, label='デジタル展示 (Digital)', color='#FF6B6B')
-    ax.fill(angles, digital_values, alpha=0.25, color='#FF6B6B')
-    
-    ax.plot(angles, traditional_values, 'o-', linewidth=2, label='実物展示 (Traditional)', color='#4ECDC4')
-    ax.fill(angles, traditional_values, alpha=0.25, color='#4ECDC4')
-    
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=12)
-    ax.set_ylim(0, 5)
-    ax.set_title('デジタル展示 vs 実物展示の比較\n(Digital vs Traditional Exhibition Comparison)', 
-                fontsize=16, fontweight='bold', pad=20)
-    ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.0))
-    ax.grid(True)
-    
+    plt.suptitle('展示満足度の分布比較\n(Exhibition Satisfaction Distribution Comparison)', 
+                fontsize=16, fontweight='bold')
     plt.tight_layout()
     plt.savefig('Visitors/comparison_radar.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -276,7 +280,7 @@ def main():
     print("✓ テクノロジー相関分析グラフを生成しました (Technology correlation created)")
     
     create_comparison_radar(df)
-    print("✓ レーダーチャート比較を生成しました (Radar chart comparison created)")
+    print("✓ 分布付き箱ヒゲ図比較を生成しました (Box plot with distribution comparison created)")
     
     print_summary_statistics(df)
 
