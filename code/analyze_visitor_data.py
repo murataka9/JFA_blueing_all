@@ -9,6 +9,23 @@ plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'Takao Gothic', 'IPAex Gothic
 def load_and_clean_data():
     df = pd.read_csv('Visitors/visitors survey_data.csv')
     
+    df = df.T
+    df.columns = df.iloc[0]  # Use first row as column names
+    df = df.drop(df.index[0])  # Remove the header row
+    
+    df.reset_index(drop=True, inplace=True)
+    
+    column_mapping = {
+        '[1]ご年齢': '年齢 (Age)',
+        '[3]サッカーは好きだ': 'サッカーへの関心 (Interest in Soccer)',
+        '[4]ARやVRなどデジタルテクノロジーに親しみがある': 'テクノロジーへの親和性 (Technology Affinity)',
+        '[5]デジタル・テクノロジー展示は好きだ': 'デジタル展示への嗜好 (Digital Exhibition Preference)',
+        '[2]DIGITAL COLLECTION展示の満足度について教えて下さい。': 'デジタル展示満足度 (Digital Exhibition Satisfaction)',
+        '[3]ROAD TO 2050などの実物展示を使った展示の満足度について教えて下さい。': '実物展示満足度 (Traditional Exhibition Satisfaction)'
+    }
+    
+    df.rename(columns=column_mapping, inplace=True)
+    
     numeric_columns = ['年齢 (Age)', 'サッカーへの関心 (Interest in Soccer)', 
                       'テクノロジーへの親和性 (Technology Affinity)', 
                       'デジタル展示への嗜好 (Digital Exhibition Preference)',
@@ -18,6 +35,8 @@ def load_and_clean_data():
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    df = df.dropna(how='all')
     
     return df
 
@@ -135,53 +154,61 @@ def create_technology_correlation(df):
     plt.close()
 
 def create_comparison_radar(df):
-    digital_col = 'デジタル展示満足度 (Digital Exhibition Satisfaction)'
-    traditional_col = '実物展示満足度 (Traditional Exhibition Satisfaction)'
+    """Create separate box plots for AR/VR experience comparison [a][b][c][d]"""
     
-    digital_scores = df[digital_col].dropna()
-    traditional_scores = df[traditional_col].dropna()
+    aspects = {
+        '[a]見た目がリアル (Visual Realism)': '[a]見た目がリアル',
+        '[b]体験が楽しい (Experience Enjoyment)': '[b]体験が楽しい', 
+        '[c]操作がしやすい (Ease of Operation)': '[c]操作がしやすい',
+        '[d]手軽だった (Convenience)': '[d]手軽だった'
+    }
     
-    categories = ['満足度\n(Satisfaction)', '平均評価\n(Average Rating)', 
-                 '最高評価\n(Max Rating)', '評価の一貫性\n(Consistency)']
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    axes = axes.flatten()
     
-    digital_values = [
-        digital_scores.mean(),
-        digital_scores.mean(),
-        digital_scores.max(),
-        5 - digital_scores.std()
-    ]
+    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A']
     
-    traditional_values = [
-        traditional_scores.mean(),
-        traditional_scores.mean(),
-        traditional_scores.max(),
-        5 - traditional_scores.std()
-    ]
+    for i, (aspect_name, col_name) in enumerate(aspects.items()):
+        if col_name in df.columns:
+            data = pd.to_numeric(df[col_name], errors='coerce').dropna()
+            
+            if len(data) > 0:
+                bp = axes[i].boxplot([data], patch_artist=True, tick_labels=['AR/VR比較評価\n(vs AR/VR Experience)'])
+                bp['boxes'][0].set_facecolor(colors[i])
+                bp['boxes'][0].set_alpha(0.7)
+                
+                y_jitter = np.random.normal(1, 0.04, size=len(data))
+                axes[i].scatter(y_jitter, data, alpha=0.6, color=colors[i], s=40)
+                
+                axes[i].set_ylabel('評価スコア (Rating Score)', fontsize=12)
+                axes[i].set_title(f'{aspect_name}\n(デジタル展示 vs AR/VR体験)', 
+                                fontsize=14, fontweight='bold')
+                axes[i].grid(True, alpha=0.3)
+                axes[i].set_ylim(0.5, 5.5)
+                
+                mean_val = data.mean()
+                median_val = data.median()
+                std_val = data.std()
+                axes[i].text(0.7, 5.2, f'平均: {mean_val:.2f}\n中央値: {median_val:.2f}\n標準偏差: {std_val:.2f}\nN={len(data)}\n\n※高スコア=デジタル展示が\nAR/VR体験より優秀', 
+                            bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+                
+                print(f"{aspect_name}: Mean={mean_val:.2f}, Median={median_val:.2f}, Std={std_val:.2f}, N={len(data)}")
+            else:
+                axes[i].text(0.5, 0.5, 'データなし\n(No Data)', ha='center', va='center', 
+                           transform=axes[i].transAxes, fontsize=14)
+                axes[i].set_title(f'{aspect_name}\n(データなし)', fontsize=14, fontweight='bold')
+        else:
+            axes[i].text(0.5, 0.5, f'列が見つかりません\n(Column not found)\n{col_name}', 
+                        ha='center', va='center', transform=axes[i].transAxes, fontsize=12)
+            axes[i].set_title(f'{aspect_name}\n(列なし)', fontsize=14, fontweight='bold')
     
-    angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
-    digital_values += digital_values[:1]
-    traditional_values += traditional_values[:1]
-    angles += angles[:1]
-    
-    fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(projection='polar'))
-    
-    ax.plot(angles, digital_values, 'o-', linewidth=2, label='デジタル展示 (Digital)', color='#FF6B6B')
-    ax.fill(angles, digital_values, alpha=0.25, color='#FF6B6B')
-    
-    ax.plot(angles, traditional_values, 'o-', linewidth=2, label='実物展示 (Traditional)', color='#4ECDC4')
-    ax.fill(angles, traditional_values, alpha=0.25, color='#4ECDC4')
-    
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=12)
-    ax.set_ylim(0, 5)
-    ax.set_title('デジタル展示 vs 実物展示の比較\n(Digital vs Traditional Exhibition Comparison)', 
-                fontsize=16, fontweight='bold', pad=20)
-    ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.0))
-    ax.grid(True)
-    
+    plt.suptitle('AR/VR経験者によるデジタル展示評価\n(Digital Exhibition Evaluation by AR/VR Experienced Users)', 
+                fontsize=18, fontweight='bold', y=0.95)
     plt.tight_layout()
     plt.savefig('Visitors/comparison_radar.png', dpi=150, bbox_inches='tight')
     plt.close()
+    
+    print(f"Individual comparison aspect box plots saved: comparison_radar.png")
 
 def print_summary_statistics(df):
     print("=== 来場者調査データ分析結果 (Visitor Survey Analysis Results) ===\n")
@@ -194,26 +221,55 @@ def print_summary_statistics(df):
     traditional_sat_col = '実物展示満足度 (Traditional Exhibition Satisfaction)'
     
     print(f"回答者数 (Total Respondents): {len(df)}")
-    print(f"平均年齢 (Average Age): {df[age_col].mean():.1f}歳 ({df[age_col].min():.0f}-{df[age_col].max():.0f}歳)")
-    print(f"サッカー関心度 (Soccer Interest): {df[soccer_col].mean():.1f}/5")
-    print(f"テクノロジー親和性 (Technology Affinity): {df[tech_col].mean():.1f}/5")
-    print(f"デジタル展示嗜好 (Digital Exhibition Preference): {df[digital_pref_col].mean():.1f}/5")
+    
+    if age_col in df.columns:
+        age_data = df[age_col].dropna()
+        if len(age_data) > 0:
+            print(f"平均年齢 (Average Age): {age_data.mean():.1f}歳 ({age_data.min():.0f}-{age_data.max():.0f}歳)")
+    
+    if soccer_col in df.columns:
+        soccer_data = df[soccer_col].dropna()
+        if len(soccer_data) > 0:
+            print(f"サッカー関心度 (Soccer Interest): {soccer_data.mean():.1f}/5")
+    
+    if tech_col in df.columns:
+        tech_data = df[tech_col].dropna()
+        if len(tech_data) > 0:
+            print(f"テクノロジー親和性 (Technology Affinity): {tech_data.mean():.1f}/5")
+    
+    if digital_pref_col in df.columns:
+        pref_data = df[digital_pref_col].dropna()
+        if len(pref_data) > 0:
+            print(f"デジタル展示嗜好 (Digital Exhibition Preference): {pref_data.mean():.1f}/5")
+    
     print()
     
-    digital_scores = df[digital_sat_col].dropna()
-    traditional_scores = df[traditional_sat_col].dropna()
+    digital_scores = df[digital_sat_col].dropna() if digital_sat_col in df.columns else pd.Series()
+    traditional_scores = df[traditional_sat_col].dropna() if traditional_sat_col in df.columns else pd.Series()
     
     print("=== 満足度比較 (Satisfaction Comparison) ===")
-    print(f"デジタル展示満足度 (Digital): {digital_scores.mean():.1f}/5 ({len(digital_scores)}名)")
-    print(f"実物展示満足度 (Traditional): {traditional_scores.mean():.1f}/5 ({len(traditional_scores)}名)")
+    if len(digital_scores) > 0:
+        print(f"デジタル展示満足度 (Digital): {digital_scores.mean():.1f}/5 ({len(digital_scores)}名)")
+    if len(traditional_scores) > 0:
+        print(f"実物展示満足度 (Traditional): {traditional_scores.mean():.1f}/5 ({len(traditional_scores)}名)")
     print()
     
-    tech_digital_corr = df[tech_col].corr(df[digital_sat_col])
-    pref_digital_corr = df[digital_pref_col].corr(df[digital_sat_col])
-    
     print("=== 相関分析 (Correlation Analysis) ===")
-    print(f"テクノロジー親和性 vs デジタル満足度: {tech_digital_corr:.3f}")
-    print(f"デジタル嗜好 vs デジタル満足度: {pref_digital_corr:.3f}")
+    if tech_col in df.columns and digital_sat_col in df.columns:
+        tech_digital_corr = df[tech_col].corr(df[digital_sat_col])
+        if not pd.isna(tech_digital_corr):
+            print(f"テクノロジー親和性 vs デジタル満足度: {tech_digital_corr:.3f}")
+    
+    if digital_pref_col in df.columns and digital_sat_col in df.columns:
+        pref_digital_corr = df[digital_pref_col].corr(df[digital_sat_col])
+        if not pd.isna(pref_digital_corr):
+            print(f"デジタル嗜好 vs デジタル満足度: {pref_digital_corr:.3f}")
+    
+    print("\n=== デバッグ情報 (Debug Info) ===")
+    print("利用可能な列 (Available columns):")
+    for col in df.columns:
+        print(f"  - {col}")
+    print(f"\nデータ形状 (Data shape): {df.shape}")
 
 def main():
     df = load_and_clean_data()
@@ -228,7 +284,7 @@ def main():
     print("✓ テクノロジー相関分析グラフを生成しました (Technology correlation created)")
     
     create_comparison_radar(df)
-    print("✓ レーダーチャート比較を生成しました (Radar chart comparison created)")
+    print("✓ 分布付き箱ヒゲ図比較を生成しました (Box plot with distribution comparison created)")
     
     print_summary_statistics(df)
 
